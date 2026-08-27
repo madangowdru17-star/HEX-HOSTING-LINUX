@@ -1,0 +1,19 @@
+# Core (required — the app runs on these alone; no bcrypt/flask-limiter
+# dependency is required, see SECURITY.md for why).
+Flask==3.1.3
+Werkzeug==3.1.7
+itsdangerous==2.2.0
+psutil==7.2.2
+requests==2.33.1
+
+# Required by the "Import from GitHub" feature (the `git` binary itself
+# must also be installed on the host / in the container image).
+
+# Required to actually run in production (Railway/Render/Heroku-style
+# platforms all run this via the Procfile).
+gunicorn==23.0.0
+
+# --- Optional, recommended for multi-worker / high-traffic production
+# deployments (see SECURITY.md "Scaling rate limiting" section) ---
+# flask-limiter==3.8.0
+# redis==5.0.8
