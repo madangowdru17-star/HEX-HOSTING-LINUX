@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <script>
+    (function(){
+      var _t = document.querySelector('meta[name="csrf-token"]').content;
+      var _f = window.fetch;
+      window.fetch = function(input, init){
+        init = init || {};
+        var m = (init.method || 'GET').toUpperCase();
+        if (m !== 'GET' && m !== 'HEAD') {
+          init.headers = init.headers || {};
+          if (init.headers instanceof Headers) { init.headers.set('X-CSRFToken', _t); }
+          else { init.headers['X-CSRFToken'] = _t; }
+        }
+        return _f(input, init);
+      };
+    })();
+  </script>
+  <title>NE-CORE | Security Center</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;500;700;800&display=swap');
+
+    :root {
+      --bg: #000000;
+      --card: rgba(28, 28, 30, 0.7);
+      --accent: #ff3b30;
+      --blue: #007aff;
+      --green: #34c759;
+      --orange: #ff9f0a;
+      --border: rgba(255, 255, 255, 0.1);
+      --glass: blur(25px) saturate(180%);
+    }
+
+    body {
+      background: var(--bg); color: #fff; font-family: 'Plus Jakarta Sans', sans-serif;
+      margin: 0; padding-bottom: 50px;
+    }
+
+    .navbar {
+      background: rgba(0, 0, 0, 0.5); backdrop-filter: var(--glass);
+      border-bottom: 0.5px solid var(--border); padding: 15px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 1000;
+    }
+
+    .container { max-width: 900px; margin: auto; padding: 20px; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 18px; overflow-x: auto; }
+    .tab-btn {
+      background: var(--card); border: 0.5px solid var(--border); color: #8e8e93;
+      padding: 9px 16px; border-radius: 20px; font-size: 12px; font-weight: 800;
+      white-space: nowrap; cursor: pointer;
+    }
+    .tab-btn.active { background: var(--blue); color: #fff; }
+
+    .monitor-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;
+    }
+    .stat-pill {
+      background: var(--card); border: 0.5px solid var(--border);
+      padding: 15px; border-radius: 20px;
+    }
+    .stat-label { font-size: 10px; color: #8e8e93; font-weight: 700; text-transform: uppercase; }
+    .stat-value { font-size: 18px; font-weight: 800; display: block; margin-top: 4px; }
+
+    .row-card {
+      background: var(--card); border-radius: 16px; padding: 14px 16px;
+      margin-bottom: 10px; border: 0.5px solid var(--border);
+      font-size: 12px;
+    }
+    .row-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .row-title { font-weight: 800; font-size: 13px; }
+    .row-meta { color: #8e8e93; font-size: 11px; margin-top: 4px; }
+    .row-details { color: #c7c7cc; font-size: 11px; margin-top: 6px; word-break: break-all; }
+
+    .sev-badge {
+      font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 6px; text-transform: uppercase;
+    }
+    .sev-low { background: rgba(0,122,255,0.12); color: var(--blue); }
+    .sev-medium { background: rgba(255,159,10,0.12); color: var(--orange); }
+    .sev-high { background: rgba(255,59,48,0.12); color: var(--accent); }
+    .sev-info { background: rgba(255,255,255,0.08); color: #c7c7cc; }
+
+    .mini-btn {
+      background: rgba(255,255,255,0.06); border: none; color: #fff;
+      font-size: 10px; font-weight: 800; padding: 6px 10px; border-radius: 10px; cursor: pointer;
+    }
+
+    .empty { text-align: center; color: #636366; padding: 30px 0; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <a href="/admin/panel" style="color:#fff;"><i class="fa-solid fa-arrow-left"></i></a>
+    <div style="font-weight:800; font-size:18px;">Security Center</div>
+  </div>
+  <button class="mini-btn" onclick="loadAll()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+</nav>
+
+<div class="container">
+  <div class="monitor-grid">
+    <div class="stat-pill">
+      <span class="stat-label">Open Alerts</span>
+      <span class="stat-value" id="alertCount">0</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-label">Unique IPs (recent)</span>
+      <span class="stat-value" id="ipCount">0</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab-btn active" data-tab="alerts" onclick="switchTab('alerts')">Alerts</div>
+    <div class="tab-btn" data-tab="audit" onclick="switchTab('audit')">Audit Log</div>
+    <div class="tab-btn" data-tab="ips" onclick="switchTab('ips')">IP Monitor</div>
+    <div class="tab-btn" data-tab="requests" onclick="switchTab('requests')">Requests</div>
+  </div>
+
+  <div id="tab-alerts"></div>
+  <div id="tab-audit" style="display:none;"></div>
+  <div id="tab-ips" style="display:none;"></div>
+  <div id="tab-requests" style="display:none;"></div>
+</div>
+
+<script>
+let DATA = { alerts: [], audit_logs: [], top_ips: [], recent_requests: [] };
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  ['alerts','audit','ips','requests'].forEach(t => document.getElementById('tab-'+t).style.display = (t === name ? 'block' : 'none'));
+}
+
+function sevClass(sev) { return 'sev-' + (sev || 'info'); }
+
+async function resolveAlert(id) {
+  await fetch(`/admin/security/alerts/${id}/resolve`, { method: 'POST' });
+  loadAll();
+}
+
+function renderAlerts() {
+  const open = DATA.alerts.filter(a => !a.resolved);
+  document.getElementById('alertCount').innerText = open.length;
+  const el = document.getElementById('tab-alerts');
+  if (!DATA.alerts.length) { el.innerHTML = '<div class="empty">No security alerts recorded yet.</div>'; return; }
+  el.innerHTML = DATA.alerts.map(a => `
+    <div class="row-card">
+      <div class="row-top">
+        <div class="row-title">${a.type}</div>
+        <span class="sev-badge ${sevClass(a.severity)}">${a.severity}</span>
+      </div>
+      <div class="row-meta">${a.created_at} &middot; IP: ${a.ip || 'n/a'}</div>
+      <div class="row-details">${a.message || ''}</div>
+      ${a.resolved ? '' : `<div style="margin-top:8px;"><button class="mini-btn" onclick="resolveAlert(${a.id})"><i class="fa-solid fa-check"></i> Mark Resolved</button></div>`}
+    </div>`).join('');
+}
+
+function renderAudit() {
+  const el = document.getElementById('tab-audit');
+  if (!DATA.audit_logs.length) { el.innerHTML = '<div class="empty">No audit entries yet.</div>'; return; }
+  el.innerHTML = DATA.audit_logs.map(a => `
+    <div class="row-card">
+      <div class="row-top">
+        <div class="row-title">${a.action}</div>
+        <span class="sev-badge sev-info">${a.actor_type}</span>
+      </div>
+      <div class="row-meta">${a.created_at} &middot; ${a.actor_name || a.actor_id || 'system'} &middot; IP: ${a.ip || 'n/a'}</div>
+      ${a.target ? `<div class="row-details">target: ${a.target}</div>` : ''}
+      ${a.details ? `<div class="row-details">${a.details}</div>` : ''}
+    </div>`).join('');
+}
+
+function renderIps() {
+  document.getElementById('ipCount').innerText = DATA.top_ips.length;
+  const el = document.getElementById('tab-ips');
+  if (!DATA.top_ips.length) { el.innerHTML = '<div class="empty">No traffic recorded yet.</div>'; return; }
+  el.innerHTML = DATA.top_ips.map(i => `
+    <div class="row-card">
+      <div class="row-top">
+        <div class="row-title">${i.ip}</div>
+        <span class="sev-badge ${i.errors > 5 ? 'sev-high' : 'sev-info'}">${i.hits} reqs</span>
+      </div>
+      <div class="row-meta">${i.errors} error responses</div>
+    </div>`).join('');
+}
+
+function renderRequests() {
+  const el = document.getElementById('tab-requests');
+  if (!DATA.recent_requests.length) { el.innerHTML = '<div class="empty">No requests logged yet.</div>'; return; }
+  el.innerHTML = DATA.recent_requests.slice(0, 100).map(r => `
+    <div class="row-card">
+      <div class="row-top">
+        <div class="row-title">${r.method} ${r.path}</div>
+        <span class="sev-badge ${r.status >= 400 ? 'sev-high' : 'sev-info'}">${r.status}</span>
+      </div>
+      <div class="row-meta">${r.created_at} &middot; IP: ${r.ip} ${r.is_admin ? '&middot; admin' : ''}</div>
+    </div>`).join('');
+}
+
+async function loadAll() {
+  const r = await fetch('/admin/security/data');
+  DATA = await r.json();
+  renderAlerts(); renderAudit(); renderIps(); renderRequests();
+}
+
+document.addEventListener('DOMContentLoaded', loadAll);
+</script>
+</body>
+</html>
